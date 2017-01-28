@@ -42,6 +42,8 @@ def draw_frame(img, faces):
 
     global xdeg
     global ydeg
+    global cx
+    global cy
     global isRunning
 
     global faceCount
@@ -89,7 +91,10 @@ def draw_frame(img, faces):
 def main():
     global isRunning
     global face_cascade
-    
+    global resX
+    global resY
+
+
     ### Setup #####################################################################
     os.putenv('SDL_FBDEV', '/dev/fb0')
 
