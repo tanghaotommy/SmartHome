@@ -455,6 +455,7 @@ def zigbeeMessageCallbackHandler(data):
                             cluster='\x0b\x04',
                             profile='\x01\x04',
                             data='\x00' + seqnumber + '\x0b'+'\x07'+'\x00')
+                    step=step+1
                     time.sleep(1)
              
 
@@ -500,7 +501,6 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
     message = json.loads(msg.payload)
-    id = message['Id'] #add
     if (message['Type'] == "ViewPhoto"):
         #TO-DO: Require camera to take picture.
         camera = PiCamera()
@@ -512,7 +512,7 @@ def on_message(client, userdata, msg):
         image =  open('/home/pi/Desktop/viewphoto.jpg','rb')
         image_read = image.read()
         image_64 = base64.encodestring(image_read)
-        payload = {"Homename":"home1","Id":id,"Image":image_64} #modified
+        payload = {"Homename":"home1","Image":image_64}
         r=requests.post(url, data=json.dumps(payload))         
     if message['Type'] == "OpenDoor":
         door.OpenDoor()
@@ -655,9 +655,9 @@ try:
                     dest_endpoint='\x00',
                     cluster='\x00\x21',
                     profile='\x00\x00',
-                    data='\x02' + '\x78\x7A\x77\x05\x00\x6F\x0D\x00'+'\x01'+'\x04\x0B'+'\x03'+'\xDA\x9A\xD9\x40\x00\xA2\x13\x00'+'\x01')
+                    data='\x02' + '\x31\x2E\x78\05\x00\x6F\x0D\x00'+'\x01'+'\x04\x0B'+'\x03'+'\xB4\x9C\xD9\x40\x00\xA2\x13\x00'+'\x01')
             time.sleep(1)
-            step = step+1
+            
 
         elif step == 3:
             print "sending Configure Reporting"
@@ -671,7 +671,7 @@ try:
                     profile='\x01\x04',
                     data='\x00' + '\x03'+ '\x06'+ '\x00'+'\x0b\x05'+'\x29'+'\x01\x00'+'\x58\x02'+'\x05\x00')
             time.sleep(1)
-            step=step+1
+            
         
         #################
         #human sensor
@@ -691,16 +691,13 @@ try:
 except KeyboardInterrupt:
         GPIO.cleanup()
         client.loop_stop()
-        zb.halt()
-        serialConnection.close()
         print "all cleanup"
 except:
         traceback.print_exc()
 
 zb.halt()
 serialConnection.close()
-GPIO.cleanup()
-client.loop_stop()
+
 
 
 
