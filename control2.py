@@ -500,6 +500,7 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
     message = json.loads(msg.payload)
+    id = message['Id'] #add
     if (message['Type'] == "ViewPhoto"):
         #TO-DO: Require camera to take picture.
         camera = PiCamera()
@@ -511,7 +512,7 @@ def on_message(client, userdata, msg):
         image =  open('/home/pi/Desktop/viewphoto.jpg','rb')
         image_read = image.read()
         image_64 = base64.encodestring(image_read)
-        payload = {"Homename":"home1","Image":image_64}
+        payload = {"Homename":"home1","Id":id,"Image":image_64} #modified
         r=requests.post(url, data=json.dumps(payload))         
     if message['Type'] == "OpenDoor":
         door.OpenDoor()

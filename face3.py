@@ -72,14 +72,14 @@ def draw_frame(img, faces):
         result = img[y:y + h, x:x + w]
         result = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
         result = cv2.resize(result,(100,100),interpolation=cv2.INTER_LINEAR)
-        t = time.time()
-        cv2.imwrite("face" + str(t) + ".jpg",result)
+        # t = time.time()
+        # cv2.imwrite("face" + str(t) + ".jpg",result)
         print "Save 1 face"
 
         url = 'http://54.183.198.179/facerecognition.php'
-        image =  open("face" + str(t) + ".jpg",'rb')
-        image_read = image.read()
-        image_64 = base64.encodestring(image_read)
+        # image =  open("face" + str(t) + ".jpg",'rb')
+        # image_read = image.read()
+        image_64 = base64.encodestring(result)
         payload = {"Homename":"home1","Image":image_64}
         r=requests.post(url, data=json.dumps(payload))
         print r.text
