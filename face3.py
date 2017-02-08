@@ -72,6 +72,7 @@ def draw_frame(img, faces):
         result = img[y:y + h, x:x + w]
         result = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
         result = cv2.resize(result,(100,100),interpolation=cv2.INTER_LINEAR)
+        result = cv2.equalizeHist(result)
         # t = time.time()
         # cv2.imwrite("face" + str(t) + ".jpg",result)
         print "Save 1 face"
@@ -82,9 +83,9 @@ def draw_frame(img, faces):
         image_64 = base64.encodestring(result)
         payload = {"Homename":"home1","Image":image_64}
         r=requests.post(url, data=json.dumps(payload))
-        print r.text
+        #print r.text
 
-        os.remove("face" + str(t) + ".jpg")
+        # os.remove("face" + str(t) + ".jpg")
 
         isRunning = False
 
