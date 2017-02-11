@@ -519,7 +519,7 @@ def on_message(client, userdata, msg):
         else:
             print "Camera is in use!"
             url = 'http://54.183.198.179/response.php'
-            payload = {"Homename":"home1","Id":id,"Message":"I'm sorry. It seems that your camera is being used for detecting face. Maybe you could try it later. "}
+            payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":"I'm sorry. It seems that your camera is being used for detecting face. Maybe you could try it later. "}
             r=requests.post(url, data=json.dumps(payload))
             mutex.release()
             return
@@ -548,7 +548,7 @@ def on_message(client, userdata, msg):
         
         id = message['Id']
         url = 'http://54.183.198.179/response.php'
-        payload = {"Homename":"home1","Id":id,"Message":"Your door is opened!"}
+        payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":"Your door is opened!"}
         r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "SendAlert":
         GPIO.setup(23, GPIO.OUT)
@@ -572,7 +572,7 @@ def on_message(client, userdata, msg):
 
         id = message['Id']
         url = 'http://54.183.198.179/response.php'
-        payload = {"Homename":"home1","Id":id,"Message":"Your light is turned on!"}
+        payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":"Your light is turned on!"}
         r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "TurnOffLight":
         print 'sending Turn Off'
@@ -588,7 +588,7 @@ def on_message(client, userdata, msg):
         
         id = message['Id']
         url = 'http://54.183.198.179/response.php'
-        payload = {"Homename":"home1","Id":id,"Message":"Your light is turned off!"}
+        payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":"Your light is turned off!"}
         r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "HomeStatus":
         humidity, temperature = Adafruit_DHT.read_retry(11,4)
@@ -597,7 +597,7 @@ def on_message(client, userdata, msg):
 
         id = message['Id']
         url = 'http://54.183.198.179/response.php'
-        payload = {"Homename":"home1","Id":id,"Message":status}
+        payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":status}
         r=requests.post(url, data=json.dumps(payload))
 
 
