@@ -22,6 +22,7 @@ from threading import Thread, Lock
 import random
 import sys
 import Adafruit_DHT
+import threading
 
 
 ########################
@@ -53,6 +54,8 @@ bindResCheck = False;
 matchDescResCh = False;
 step = 0;
 sensorMacAddr = '\x31\x2E\x78\05\x00\x6F\x0D\x00'
+
+isOutletRunning = False
 
 def processZigbeeATCommandMessage(parsedData):
     ''' Method to process an AT zigbee message
@@ -518,8 +521,13 @@ def on_message(client, userdata, msg):
         payload = {"Homename":"home1","Id":id,"Image":image_64} #modified
         r=requests.post(url, data=json.dumps(payload))         
     if message['Type'] == "OpenDoor":
-        door.OpenDoor()
-        pass;
+        #door.OpenDoor()
+        print "Open door"
+        
+        id = message['Id'] #add
+        url = 'http://54.183.198.179/response.php'
+        payload = {"Homename":"home1","Id":id,"Image":image_64} #modified
+        r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "SendAlert":
         GPIO.setup(23, GPIO.OUT)
         for i in range(0,10):
@@ -559,6 +567,111 @@ def on_message(client, userdata, msg):
         pass
 
 
+def startOutlet():
+    global zb
+    global isOutletRunning
+    # parse the command line arguments
+    parseCommandLineArgs(sys.argv[1:])
+    # create serial object used for communication to the zigbee radio
+    serialConnection = serial.Serial(ZIGBEE_SERIAL_PORT, ZIGBEE_SERIAL_BAUD)
+    
+    # create a zigbee object that handles all zigbee communication
+    # we use this to do all communication to and from the radio
+    # when data comes from the radio it will get a bit of unpacking
+    # and then a call to the callback specified will be done with the 
+    # unpacked data
+    zb = ZigBee(serialConnection, callback=zigbeeMessageCallbackHandler)
+
+    getConnectedRadioLongAddress()
+        
+    time.sleep(1)
+    print "Broadcasting route record request "
+    zb.send('tx_explicit',
+        dest_addr_long = BROADCAST,
+        dest_addr = UNKNOWN,
+        src_endpoint = '\x00',
+        dest_endpoint = '\x00',
+        cluster = '\x00\x32',
+        profile = '\x00\x00',
+        data = '\x12'+'\x01')
+    time.sleep(6)
+       
+    print "Sending configure reports"
+        
+    print "Starting main loop..."
+
+    global step
+    global sensorMacAddr
+
+    try:
+        while isOutletRunning:
+            #zigbee connection
+            # print "sending"
+            # Management Permit Joining Request. just send one time.
+            if step == 0:
+                print "sending Management Permit Joining Request"
+                zb.send('tx_explicit',
+                        frame_id='\x08',
+                        dest_addr_long=myLongAddr,
+                        dest_addr=myShortAddr,
+                        src_endpoint='\x00',
+                        dest_endpoint='\x00',
+                        cluster='\x00\x36',
+                        profile='\x00\x00',
+                        data='\x01' + '\x5a' + '\x00')
+                time.sleep(1)
+                step = step+1
+
+            elif step == 1:
+                print "sending Management Permit Joining Request"
+                zb.send('tx_explicit',
+                        frame_id='\x01',
+                        dest_addr_long=myLongAddr,
+                        dest_addr=myShortAddr,
+                        src_endpoint='\x00',
+                        dest_endpoint='\x00',
+                        cluster='\x00\x36',
+                        profile='\x00\x00',
+                        data='\x01' + '\x5a' + '\x00')
+                time.sleep(1)
+                step = step+1
+
+            elif step == 2:
+                print "sending Binding Request"
+                zb.send('tx_explicit',
+                        frame_id='\x40',
+                        dest_addr_long=myLongAddr,
+                        dest_addr=myShortAddr,
+                        src_endpoint='\x00',
+                        dest_endpoint='\x00',
+                        cluster='\x00\x21',
+                        profile='\x00\x00',
+                        data='\x02' + '\x31\x2E\x78\05\x00\x6F\x0D\x00'+'\x01'+'\x04\x0B'+'\x03'+'\xB4\x9C\xD9\x40\x00\xA2\x13\x00'+'\x01')
+                time.sleep(1)
+                
+            elif step == 3:
+                print "sending Configure Reporting"
+                zb.send('tx_explicit',
+                        frame_id='\x40',
+                        dest_addr_long=myLongAddr,
+                        dest_addr=myShortAddr,
+                        src_endpoint='\x01',
+                        dest_endpoint='\x01',
+                        cluster='\x0B\x04',
+                        profile='\x01\x04',
+                        data='\x00' + '\x03'+ '\x06'+ '\x00'+'\x0b\x05'+'\x29'+'\x01\x00'+'\x58\x02'+'\x05\x00')
+                time.sleep(1)
+
+    except KeyboardInterrupt:
+            print "outlet cleanup"
+    except:
+            traceback.print_exc()
+
+    zb.halt()
+    serialConnection.close()
+
+
+
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
@@ -576,106 +689,14 @@ GPIO.setup(12,GPIO.IN)
 flag=0
 
 
-# parse the command line arguments
-parseCommandLineArgs(sys.argv[1:])
-# create serial object used for communication to the zigbee radio
-serialConnection = serial.Serial(ZIGBEE_SERIAL_PORT, ZIGBEE_SERIAL_BAUD)
-   
-# create a zigbee object that handles all zigbee communication
-# we use this to do all communication to and from the radio
-# when data comes from the radio it will get a bit of unpacking
-# and then a call to the callback specified will be done with the 
-# unpacked data
-zb = ZigBee(serialConnection, callback=zigbeeMessageCallbackHandler)
+t = threading.Thread(target=startOutlet)
+t.start()
 
-getConnectedRadioLongAddress();
-    
-time.sleep(1)
-print "Broadcasting route record request "
-zb.send('tx_explicit',
-    dest_addr_long = BROADCAST,
-    dest_addr = UNKNOWN,
-    src_endpoint = '\x00',
-    dest_endpoint = '\x00',
-    cluster = '\x00\x32',
-    profile = '\x00\x00',
-    data = '\x12'+'\x01')
-time.sleep(6)
-
-    
-print "Sending configure reports"
-    
-print "Starting main loop..."
-
-
-global step
-global sensorMacAddr
-
-
+global isOutletRunning
+isOutletRunning = True
 
 try:
     while True:
-        #zigbee connection
-        # print "sending"
-        # Management Permit Joining Request. just send one time.
-        if step == 0:
-            print "sending Management Permit Joining Request"
-            zb.send('tx_explicit',
-                    frame_id='\x08',
-                    dest_addr_long=myLongAddr,
-                    dest_addr=myShortAddr,
-                    src_endpoint='\x00',
-                    dest_endpoint='\x00',
-                    cluster='\x00\x36',
-                    profile='\x00\x00',
-                    data='\x01' + '\x5a' + '\x00')
-            time.sleep(1)
-            step = step+1
-
-
-
-        elif step == 1:
-            print "sending Management Permit Joining Request"
-            zb.send('tx_explicit',
-                    frame_id='\x01',
-                    dest_addr_long=myLongAddr,
-                    dest_addr=myShortAddr,
-                    src_endpoint='\x00',
-                    dest_endpoint='\x00',
-                    cluster='\x00\x36',
-                    profile='\x00\x00',
-                    data='\x01' + '\x5a' + '\x00')
-            time.sleep(1)
-            step = step+1
-
-        elif step == 2:
-            print "sending Binding Request"
-            zb.send('tx_explicit',
-                    frame_id='\x40',
-                    dest_addr_long=myLongAddr,
-                    dest_addr=myShortAddr,
-                    src_endpoint='\x00',
-                    dest_endpoint='\x00',
-                    cluster='\x00\x21',
-                    profile='\x00\x00',
-                    data='\x02' + '\x31\x2E\x78\05\x00\x6F\x0D\x00'+'\x01'+'\x04\x0B'+'\x03'+'\xB4\x9C\xD9\x40\x00\xA2\x13\x00'+'\x01')
-            time.sleep(1)
-            
-
-        elif step == 3:
-            print "sending Configure Reporting"
-            zb.send('tx_explicit',
-                    frame_id='\x40',
-                    dest_addr_long=myLongAddr,
-                    dest_addr=myShortAddr,
-                    src_endpoint='\x01',
-                    dest_endpoint='\x01',
-                    cluster='\x0B\x04',
-                    profile='\x01\x04',
-                    data='\x00' + '\x03'+ '\x06'+ '\x00'+'\x0b\x05'+'\x29'+'\x01\x00'+'\x58\x02'+'\x05\x00')
-            time.sleep(1)
-            
-        
         #################
         #human sensor
         #################
@@ -692,14 +713,12 @@ try:
             time.sleep(6)
 
 except KeyboardInterrupt:
+        isOutletRunning = False
         GPIO.cleanup()
         client.loop_stop()
         print "all cleanup"
 except:
         traceback.print_exc()
-
-zb.halt()
-serialConnection.close()
 
 
 
