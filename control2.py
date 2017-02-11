@@ -591,10 +591,14 @@ def on_message(client, userdata, msg):
         payload = {"Homename":"home1","Id":id,"Message":"Your light is turned off!"}
         r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "HomeStatus":
-        url = 'http://54.183.198.179/refreshstatus.php'
         humidity, temperature = Adafruit_DHT.read_retry(11,4)
-        print 'Temperature: {0:0.1f} C  Humidity: {1:0.1f} %'.format(temperature, humidity)
-        pass
+        status = 'Temperature: {0:0.1f} C  Humidity: {1:0.1f} %'.format(temperature, humidity)
+        print status
+
+        id = message['Id']
+        url = 'http://54.183.198.179/response.php'
+        payload = {"Homename":"home1","Id":id,"Message":status}
+        r=requests.post(url, data=json.dumps(payload))
 
 
 def startOutlet():
