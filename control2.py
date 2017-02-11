@@ -57,6 +57,9 @@ sensorMacAddr = '\x31\x2E\x78\05\x00\x6F\x0D\x00'
 
 isOutletRunning = False
 
+mutex = threading.Lock()
+cameraIsRunning = False
+
 def processZigbeeATCommandMessage(parsedData):
     ''' Method to process an AT zigbee message
 
@@ -508,11 +511,30 @@ def on_message(client, userdata, msg):
     if (message['Type'] == "ViewPhoto"):
         #TO-DO: Require camera to take picture.
         id = message['Id'] #add
+        global mutex
+        global cameraIsRunning
+        mutex.acquire()
+        if not cameraIsRunning:
+            cameraIsRunning = True
+        else:
+            print "Camera is in use!"
+            url = 'http://54.183.198.179/response.php'
+            payload = {"Homename":"home1","Id":id,"Message":"I'm sorry. It seems that your camera is being used for detecting face. Maybe you could try it later. "}
+            r=requests.post(url, data=json.dumps(payload))
+            mutex.release()
+            return
+        mutex.release()
+        
         camera = PiCamera()
         camera.start_preview()
         camera.capture('/home/pi/Desktop/viewphoto.jpg')
         camera.stop_preview()
         camera.close()
+
+        mutex.acquire()
+        cameraIsRunning = False
+        mutex.release()
+
         url = 'http://54.183.198.179/uploadphoto.php'
         image =  open('/home/pi/Desktop/viewphoto.jpg','rb')
         image_read = image.read()
@@ -524,9 +546,9 @@ def on_message(client, userdata, msg):
         #door.OpenDoor()
         print "Open door"
         
-        id = message['Id'] #add
+        id = message['Id']
         url = 'http://54.183.198.179/response.php'
-        payload = {"Homename":"home1","Id":id,"Image":image_64} #modified
+        payload = {"Homename":"home1","Id":id,"Message":"Your door is opened!"}
         r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "SendAlert":
         GPIO.setup(23, GPIO.OUT)
@@ -547,7 +569,11 @@ def on_message(client, userdata, msg):
             cluster='\x00\x06',
             profile='\x01\x04',
             data='\x01' + '\x04'+ '\x01')
-        pass;
+
+        id = message['Id']
+        url = 'http://54.183.198.179/response.php'
+        payload = {"Homename":"home1","Id":id,"Message":"Your light is turned on!"}
+        r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "TurnOffLight":
         print 'sending Turn Off'
         zb.send('tx_explicit',
@@ -559,7 +585,11 @@ def on_message(client, userdata, msg):
             cluster='\x00\x06',
             profile='\x01\x04',
             data='\x01' + '\x04'+ '\x00')
-        pass;
+        
+        id = message['Id']
+        url = 'http://54.183.198.179/response.php'
+        payload = {"Homename":"home1","Id":id,"Message":"Your light is turned off!"}
+        r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "HomeStatus":
         url = 'http://54.183.198.179/refreshstatus.php'
         humidity, temperature = Adafruit_DHT.read_retry(11,4)
@@ -670,7 +700,24 @@ def startOutlet():
     zb.halt()
     serialConnection.close()
 
+def StartFaceDetection():
+    global mutex
+    global cameraIsRunning
+    mutex.acquire()
+    if not cameraIsRunning:
+        cameraIsRunning = True
+    else:
+        print "Camera is in use!"
+        mutex.release()
+        return
+    mutex.release()
 
+    face3.StartFaceDetection()
+
+    mutex.acquire()
+    cameraIsRunning = False
+    mutex.release()
+    
 
 client = mqtt.Client()
 client.on_connect = on_connect
@@ -689,8 +736,8 @@ GPIO.setup(12,GPIO.IN)
 flag=0
 
 
-t = threading.Thread(target=startOutlet)
-t.start()
+outletThread = threading.Thread(target=startOutlet)
+outletThread.start()
 
 global isOutletRunning
 isOutletRunning = True
@@ -708,10 +755,11 @@ try:
             print "somebody here"
             if flag==0:
                 print "camera on"
-                face3.StartFaceDetection()
+                outletThread = threading.Thread(target=StartFaceDetection)
+                outletThread.start()
             flag = 1 
             time.sleep(6)
-
+    
 except KeyboardInterrupt:
         isOutletRunning = False
         GPIO.cleanup()
