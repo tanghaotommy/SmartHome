@@ -23,6 +23,7 @@ import random
 import sys
 import Adafruit_DHT
 import threading
+import serial
 
 
 ########################
@@ -545,19 +546,20 @@ def on_message(client, userdata, msg):
     if message['Type'] == "OpenDoor":
         #door.OpenDoor()
         print "Open door"
+        ser.write('d')
         
         id = message['Id']
         url = 'http://54.183.198.179/response.php'
         payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":"Your door is opened!"}
         r=requests.post(url, data=json.dumps(payload))
     if message['Type'] == "SendAlert":
-        GPIO.setup(23, GPIO.OUT)
+        GPIO.setup(11, GPIO.OUT)
         for i in range(0,10):
-            GPIO.output(23, GPIO.HIGH)
+            GPIO.output(11, GPIO.HIGH)
             time.sleep(0.075)
-            GPIO.output(23, GPIO.LOW)
+            GPIO.output(11, GPIO.LOW)
             time.sleep(0.075)
-        pass;
+        #pass;
     if message['Type'] == "TurnOnLight":
         print 'sending Turn On'
         zb.send('tx_explicit',
@@ -593,6 +595,10 @@ def on_message(client, userdata, msg):
     if message['Type'] == "HomeStatus":
         humidity, temperature = Adafruit_DHT.read_retry(11,4)
         status = 'Temperature: {0:0.1f} C  Humidity: {1:0.1f} %'.format(temperature, humidity)
+        #ser.write('g')
+        #gasdata=ser.readline()
+        #status2=int(gasdata)
+        #status = status + " gas value: "+ "status2"
         print status
 
         id = message['Id']
@@ -735,8 +741,8 @@ client.connect("54.183.198.179", 1883, 60)
 # manual interface.
 client.loop_start()
 
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(12,GPIO.IN)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(18,GPIO.IN)
 flag=0
 
 
@@ -745,30 +751,65 @@ outletThread.start()
 
 global isOutletRunning
 isOutletRunning = True
+ser=serial.Serial('/dev/ttyACM0',9600)
 
 try:
     while True:
         #################
         #human sensor
         #################
-        if GPIO.input(12)==0:
+        if GPIO.input(18)==0:
             print "nobody"
             flag=0
             time.sleep(0.5)
-        if GPIO.input(12)==1:
+        if GPIO.input(18)==1:
             print "somebody here"
             if flag==0:
                 print "camera on"
-                outletThread = threading.Thread(target=StartFaceDetection)
-                outletThread.start()
+                faceThread = threading.Thread(target=StartFaceDetection)
+                faceThread.start()
             flag = 1 
             time.sleep(6)
+
+        ##############
+        #arduino
+        #######################
+        read_serial=ser.readline()
+        if read_serial=="gasalarm":
+            print "send alert"
+            try:
+                GPIO.setup(11, GPIO.OUT)
+            except:
+                pass
+            for i in range(0,10):
+                GPIO.output(11, GPIO.HIGH)
+                time.sleep(0.075)
+                GPIO.output(11, GPIO.LOW)
+                time.sleep(0.075)
+            ser.write('g')
+            gasdata=ser.readline()
+            statusgas=int(gasdata)
+            print statusgas
+            alarm = "alarm! gas value: " + statusgas
+            id = message['Id']
+            url = 'http://54.183.198.179/response.php'
+            payload = {"Homename":"home1","Id":id,"Type":message['Type'],"Message":alarm}
+            r=requests.post(url, data=json.dumps(payload))
+        else:
+            ser.write('l')        
+            lightdata=int(read_serial)
+            #equition
+        
+        
+
     
 except KeyboardInterrupt:
         isOutletRunning = False
         GPIO.cleanup()
         client.loop_stop()
+        ser.close()
         print "all cleanup"
+
 except:
         traceback.print_exc()
 
