@@ -1,0 +1,10 @@
+Type	Usage		Content
+1	RaspViewPhoto	{Name: , ImagePath: }
+2	OpenDoor	NULL
+3	TurnOnLight	NULL
+4	TurnOffLight	NULL
+5	HomeStatus	NULL
+6	MobileViewPhoto	{Name: , ImagePath: }
+7	ViewVideo	{Name: , VideoPath: }
+8	SendAlert	NULL
+9	NewComer	{Name: , ImagePath: }
