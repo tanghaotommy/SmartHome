@@ -7,7 +7,7 @@ char incomingdata;
 void setup() {
   Serial.begin(9600);
   pinMode(smokeA0, INPUT);
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);  //LED_BUTLTIN is pin13
   pinMode(12, OUTPUT);
   pinMode(8, OUTPUT);
 }
