@@ -5,8 +5,11 @@ int sensorThres = 175;
 char incomingdata;
 
 void setup() {
-  pinMode(smokeA0, INPUT);
   Serial.begin(9600);
+  pinMode(smokeA0, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(8, OUTPUT);
 }
 
 void loop() {
@@ -23,10 +26,15 @@ void loop() {
        delay(1000);
     }
     
-    if (incomingdata='d'){
-    	//dooropen
-
+    if (incomingdata=='d'){   //dooropen
+    digitalWrite(12, HIGH);  //pin12 is Vdd
+    digitalWrite(8, LOW);   //pin8 is ground
+    digitalWrite(LED_BUILTIN, HIGH);   
+    delay(400);                       
+    digitalWrite(LED_BUILTIN, LOW);    
+    delay(1000);                 
     }
+  
     if (analogSensor > sensorThres)
     {
         Serial.println("a");
